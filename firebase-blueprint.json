@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "Thông tin khách hàng bất động sản trong hệ thống CRM Mayhomes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Mã định danh khách hàng" },
+        "fullName": { "type": "string", "description": "Họ và tên khách hàng" },
+        "phone": { "type": "string", "description": "Số điện thoại khách hàng" },
+        "status": { "type": "string", "description": "Trạng thái chăm sóc của khách hàng" },
+        "assignee": { "type": "string", "description": "Tên chuyên viên phụ trách" },
+        "assigneeEmail": { "type": "string", "description": "Email chuyên viên phụ trách" },
+        "project": { "type": "string", "description": "Dự án khách hàng quan tâm" },
+        "productType": { "type": "string", "description": "Loại hình sản phẩm quan tâm" },
+        "budget": { "type": "string", "description": "Khoảng ngân sách dự kiến" },
+        "dataSource": { "type": "string", "description": "Nguồn dữ liệu hoặc tên Google Sheet" },
+        "notes": { "type": "string", "description": "Ghi chú tóm tắt của khách" },
+        "tags": { "type": "array", "description": "Danh sách các thẻ nhãn phân loại khách hàng nhanh (VD: Hot, Cần tư vấn vay, Đầu tư...)" },
+        "zaloReminder": {
+          "type": "object",
+          "description": "Lịch nhắc hẹn chăm sóc khách qua Zalo và thông báo đẩy trình duyệt",
+          "properties": {
+            "id": { "type": "string" },
+            "reminderTime": { "type": "string" },
+            "targetTime": { "type": "string" },
+            "advanceMinutes": { "type": "number" },
+            "notes": { "type": "string" },
+            "status": { "type": "string", "enum": ["pending", "triggered", "completed", "cancelled"] }
+          }
+        },
+        "team": { "type": "string", "description": "Phòng ban hoặc nhóm phụ trách" },
+        "createdAt": { "type": "string", "description": "Thời gian tạo hồ sơ" },
+        "updatedAt": { "type": "string", "description": "Thời gian cập nhật gần nhất" }
+      },
+      "required": ["id", "fullName", "phone", "status", "assignee"]
+    },
+    "SalesMember": {
+      "title": "SalesMember",
+      "description": "Thông tin nhân sự phòng kinh doanh trong hệ thống CRM Mayhomes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Mã định danh nhân viên" },
+        "name": { "type": "string", "description": "Họ và tên nhân sự" },
+        "email": { "type": "string", "description": "Email công việc của nhân sự" },
+        "phone": { "type": "string", "description": "Số điện thoại liên hệ" },
+        "role": { "type": "string", "enum": ["admin", "tpkd", "sale"], "description": "Vai trò phân quyền hệ thống" },
+        "title": { "type": "string", "description": "Chức danh công việc" },
+        "team": { "type": "string", "description": "Tên phòng ban hoặc đội ngũ" },
+        "status": { "type": "string", "enum": ["active", "inactive"], "description": "Trạng thái hoạt động" }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Cấu hình vận hành và nhật ký đồng bộ database của hệ thống",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Mã cấu hình" },
+        "lastSyncAt": { "type": "string", "description": "Thời điểm đồng bộ Google Sheet gần nhất" },
+        "databaseEngine": { "type": "string", "description": "Trạng thái động cơ cơ sở dữ liệu" },
+        "totalLeads": { "type": "number", "description": "Tổng số khách hàng trong cơ sở dữ liệu" },
+        "activeStaff": { "type": "number", "description": "Tổng số nhân sự kinh doanh kích hoạt" }
+      },
+      "required": ["id"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Tập hợp hồ sơ khách hàng CRM"
+    },
+    "/sales_members/{memberId}": {
+      "schema": "SalesMember",
+      "description": "Tập hợp tài khoản và nhân sự kinh doanh"
+    },
+    "/system_settings/{settingId}": {
+      "schema": "SystemSettings",
+      "description": "Cấu hình hoạt động và nhật ký hệ thống"
+    }
+  }
+}

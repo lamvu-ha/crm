@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /leads/{leadId} {
+      allow get, list, create, update, delete: if true;
+    }
+
+    match /sales_members/{memberId} {
+      allow get, list, create, update, delete: if true;
+    }
+
+    match /system_settings/{settingId} {
+      allow get, list, create, update, delete: if true;
+    }
+
+    match /test/{docId} {
+      allow get, list, create, update, delete: if true;
+    }
+  }
+}

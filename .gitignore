@@ -1,0 +1,25 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local runtime data and generated packages
+data/
+audit-results/
+php_hosting_package/
+*.zip
+leads.json
+sales_members.json
+system_logs.json
+chat_messages.json
+crm_settings.json
+custom_fields.json
+feature_flags.json
+firestore_quota.json
+ui_configs.json
+kpi_targets.json
+zalo_templates.json

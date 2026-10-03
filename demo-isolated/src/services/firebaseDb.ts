@@ -1,0 +1,12 @@
+import { Lead, SalesMember } from '../types';
+export const firestoreDb: any = null;
+export const isClientQuotaExhausted = () => true;
+export const markClientQuotaExhausted = () => {};
+export const testFirestoreConnection = async () => false;
+export const fetchLeadsFromFirestore = async (): Promise<Lead[]> => [];
+export const fetchSalesMembersFromFirestore = async (): Promise<SalesMember[]> => [];
+export const saveLeadsToFirestore = async (...args: any[]) => false;
+export const saveSalesMembersToFirestore = async (...args: any[]) => false;
+export const deleteLeadFromFirestore = async (...args: any[]) => false;
+export const deleteMultipleLeadsFromFirestore = async (...args: any[]) => false;
+export const purgeDemoLeadsFromFirestore = async () => 0;

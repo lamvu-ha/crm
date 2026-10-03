@@ -1,0 +1,8 @@
+{
+  "name": "SALEPRO_HCM_E05_CRM_DEMO 2",
+  "description": "Hệ thống quản lý khách hàng (CRM) chuẩn dành riêng cho môi giới và doanh nghiệp bất động sản: theo dõi phễu Lead, tệp dữ liệu, loại sản phẩm, dự án và báo cáo tỷ lệ chốt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
