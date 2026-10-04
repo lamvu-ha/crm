@@ -10,7 +10,8 @@ window.open = ((url, ...args) => {
 }) as typeof window.open;
 document.addEventListener('click', event => {
   const anchor = (event.target as Element)?.closest?.('a');
-  if (anchor && !anchor.href.startsWith('blob:') && new URL(anchor.href, location.href).origin !== location.origin) {
+  // tel: only opens the phone's dialer (no network), and blocking it would also swallow the app's "Gọi ngay" click handler.
+  if (anchor && !anchor.href.startsWith('blob:') && !anchor.href.startsWith('tel:') && new URL(anchor.href, location.href).origin !== location.origin) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }

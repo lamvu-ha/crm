@@ -88,6 +88,7 @@ import {
   formatFullDateTimeVN
 } from '../utils/dateFilterUtils';
 import { LeadDateFilter } from './LeadDateFilter';
+import { CallResultPrompt, withLoggedCall } from './CallResultPrompt';
 
 /**
  * Checks if a lead has updatedAt older than 3 days without new internal notes/interaction logs.
@@ -294,6 +295,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   recentlyUpdatedLeadId
 }) => {
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
+  const [callPromptLeadId, setCallPromptLeadId] = useState<string | null>(null);
   const [filterTag, setFilterTag] = useState<string>('');
   const [filterPriorityLevel, setFilterPriorityLevel] = useState<string>('');
   const [isSmartLabelModalOpen, setIsSmartLabelModalOpen] = useState<boolean>(false);
@@ -837,6 +839,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   const handleCall = (phone: string, e: React.MouseEvent) => {
     e.stopPropagation();
     window.location.href = `tel:${phone}`;
+  };
+
+  // Calling also asks for the outcome, so the call lands in the customer's history and the weekly report.
+  const handleCallLead = (lead: Lead, e: React.MouseEvent) => {
+    if (onUpdateLead) setCallPromptLeadId(lead.id);
+    handleCall(lead.phone, e);
   };
 
   const handleOpenZalo = (phone: string, e: React.MouseEvent) => {
@@ -1637,7 +1645,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         onReminder={onOpenZaloReminder}
         onUpdate={onUpdateLead}
         onAi={handleSingleAiLabel}
-        onCall={handleCall}
+        onCall={handleCallLead}
         onZalo={handleOpenZalo}
         onCopy={handleCopyPhone}
         copiedPhone={copiedPhone}
@@ -1648,6 +1656,21 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         onSaveNote={handleSaveQuickNote}
         onCancelNote={() => setEditingNoteLeadId(null)}
       />
+
+      {(() => {
+        const callLead = callPromptLeadId ? leads.find((l) => l.id === callPromptLeadId) : undefined;
+        if (!callLead || !onUpdateLead) return null;
+        return (
+          <CallResultPrompt
+            lead={callLead}
+            onClose={() => setCallPromptLeadId(null)}
+            onSave={(label, callStatus, note) => {
+              onUpdateLead(withLoggedCall(callLead, label, callStatus, note, currentUser?.name || callLead.assignee));
+              setCallPromptLeadId(null);
+            }}
+          />
+        );
+      })()}
 
       {/* SmartLabeling AI Modal */}
       <SmartLabelingModal

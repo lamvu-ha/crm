@@ -39,7 +39,8 @@ export interface SalesWeeklyActivityReportData {
   totalLeadsAssigned: number;
   // Calls
   calls: WeeklyCallActivity[];
-  totalCallsCount: number;
+  totalCallsCount: number; // số khách đã gọi
+  totalCallAttempts: number; // tổng lượt gọi
   successfulCallsCount: number;
   callbackCallsCount: number;
   unreachableCallsCount: number;
@@ -108,6 +109,34 @@ export function getWeekRangeFromDate(refDate: Date = new Date()): {
   };
 }
 
+const VN_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+/**
+ * Ngày (YYYY-MM-DD, giờ Việt Nam) của một mốc trong lịch sử khách. Lịch sử có nhiều định dạng:
+ * ISO đầy đủ "2026-10-04T03:00:00.000Z", ISO cắt phút "2026-10-04 03:00" (cũng là giờ UTC vì tạo từ toISOString),
+ * ngày thuần "2026-10-04", hoặc kiểu vi-VN "13:45:12 4/10/2026" (đã là giờ địa phương).
+ */
+export function historyDayVN(raw?: string): string | null {
+  const value = (raw || '').trim();
+  const iso = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)(Z|[+-]\d{2}:?\d{2})?$/.exec(value);
+  if (iso) {
+    const instant = new Date(`${iso[1]}T${iso[2]}${iso[3] || 'Z'}`);
+    return Number.isNaN(instant.getTime()) ? iso[1] : VN_DAY.format(instant);
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const vn = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(value);
+  return vn ? `${vn[3]}-${vn[2].padStart(2, '0')}-${vn[1].padStart(2, '0')}` : null;
+}
+
+// A logged "Cuộc gọi" entry that only schedules a callback is not a call made.
+const isScheduleOnly = (content = '') => /lên lịch hẹn gọi lại/i.test(content);
+function callOutcome(text: string): 'success' | 'callback' | 'unreachable' {
+  if (/không nghe|máy bận|thuê bao|nhầm số/i.test(text)) return 'unreachable';
+  if (/hẹn gọi lại|gọi lại sau/i.test(text)) return 'callback';
+  return 'success';
+}
+const OUTCOME_LABEL = { success: 'Đã nghe máy', callback: 'Hẹn gọi lại', unreachable: 'Không liên lạc được' } as const;
+
 /**
  * Trích xuất và tổng hợp hoạt động tuần của chuyên viên kinh doanh
  */
@@ -134,10 +163,8 @@ export function buildSalesWeeklyActivityData(
 
   // Tìm TPKD & GĐKD
   const tpkd = getTpkdForMember(member, allSales);
-  const gdkd = allSales.find((s) => 
-    (s.email && s.email.toLowerCase().includes('happyhuy2812')) || 
-    (s.title && /gđkd|giám\s*đốc\s*kinh\s*doanh/i.test(s.title))
-  ) || allSales.find((s) => s.role === 'admin') || null;
+  const gdkd = allSales.find((s) => s.title && /gđkd|giám\s*đốc\s*kinh\s*doanh/i.test(s.title))
+    || allSales.find((s) => s.role === 'admin') || null;
 
   // Lọc leads của chuyên viên này
   const memberLeads = leads.filter((l) => {
@@ -152,50 +179,35 @@ export function buildSalesWeeklyActivityData(
   let callbackCallsCount = 0;
   let unreachableCallsCount = 0;
 
+  const inRange = (day: string | null | undefined) => Boolean(day && day >= startDateStr && day <= endDateStr);
+  let totalCallAttempts = 0;
+
+  // Only logged calls ("Cuộc gọi" entries) inside the week count; one row per customer, judged by the latest call.
   memberLeads.forEach((lead) => {
-    // Kiểm tra xem lead có tương tác cuộc gọi hoặc cập nhật trong tuần không
-    const callLogs = (lead.history || []).filter((h) => {
-      const isCallType = h.type === 'Cuộc gọi' || (h.content && h.content.toLowerCase().includes('gọi'));
-      const logDate = (h.date || '').split(' ')[0];
-      const inRange = logDate >= startDateStr && logDate <= endDateStr;
-      return isCallType && inRange;
+    const callLogs = (lead.history || [])
+      .filter((h) => h.type === 'Cuộc gọi' && !isScheduleOnly(h.content))
+      .map((h) => ({ log: h, day: historyDayVN(h.date) }))
+      .filter((entry) => inRange(entry.day));
+    if (!callLogs.length) return;
+    totalCallAttempts += callLogs.length;
+
+    const latest = callLogs.reduce((best, entry) => (entry.day! > best.day! ? entry : best));
+    const outcome = callOutcome((latest.log.content || '').split('\n')[0]); // the result sits on the first line
+    if (outcome === 'success') successfulCallsCount++;
+    else if (outcome === 'callback') callbackCallsCount++;
+    else unreachableCallsCount++;
+
+    calls.push({
+      leadId: lead.id,
+      leadName: lead.fullName,
+      phone: lead.phone,
+      project: lead.project || 'BĐS Trung Tâm',
+      callStatus: OUTCOME_LABEL[outcome],
+      callDate: latest.day!,
+      latestNote: latest.log.content || lead.notes || 'Đã liên hệ tư vấn nhu cầu',
+      potentialLevel: lead.potentialLevel,
+      status: lead.status
     });
-
-    const isUpdatedInWeek = (lead.updatedAt && lead.updatedAt.split('T')[0] >= startDateStr && lead.updatedAt.split('T')[0] <= endDateStr);
-    const isCreatedInWeek = (lead.date && lead.date >= startDateStr && lead.date <= endDateStr);
-    const hasCallStatus = Boolean(lead.callStatus && lead.callStatus.trim() !== '');
-
-    // Nếu có log cuộc gọi trong tuần hoặc lead được cập nhật trạng thái gọi trong tuần
-    if (callLogs.length > 0 || ((isUpdatedInWeek || isCreatedInWeek) && hasCallStatus)) {
-      const latestLog = callLogs[callLogs.length - 1];
-      const callStatus = lead.callStatus || (latestLog ? 'Đã nghe máy' : 'Đang liên hệ');
-      const callDate = latestLog?.date ? latestLog.date.split(' ')[0] : (lead.updatedAt?.split('T')[0] || lead.date || startDateStr);
-      const latestNote = latestLog?.content || lead.notes || 'Đã liên hệ tư vấn nhu cầu';
-
-      // Phân loại kết quả
-      const csLower = callStatus.toLowerCase();
-      if (csLower.includes('nghe máy') || csLower.includes('quan tâm') || csLower.includes('zalo')) {
-        successfulCallsCount++;
-      } else if (csLower.includes('hẹn gọi') || csLower.includes('dời')) {
-        callbackCallsCount++;
-      } else if (csLower.includes('bận') || csLower.includes('thuê bao') || csLower.includes('không')) {
-        unreachableCallsCount++;
-      } else {
-        successfulCallsCount++;
-      }
-
-      calls.push({
-        leadId: lead.id,
-        leadName: lead.fullName,
-        phone: lead.phone,
-        project: lead.project || 'BĐS Trung Tâm',
-        callStatus,
-        callDate,
-        latestNote,
-        potentialLevel: lead.potentialLevel,
-        status: lead.status
-      });
-    }
   });
 
   const totalCallsCount = calls.length;
@@ -232,19 +244,24 @@ export function buildSalesWeeklyActivityData(
     : (totalAppointmentsCount > 0 ? 50 : 0);
 
   // 3. Phân tích Zalo & Pipeline
+  // Connected during the period; without a connection time, fall back to the customer's data date.
   const zaloConnectedCount = memberLeads.filter((l) => {
     const isConnected = l.zaloConnected || l.callStatus === 'Kết bạn Zalo';
-    const isRecent = (l.zaloConnectedAt && l.zaloConnectedAt.split('T')[0] >= startDateStr && l.zaloConnectedAt.split('T')[0] <= endDateStr) ||
-                     (l.date >= startDateStr && l.date <= endDateStr);
-    return isConnected && isRecent;
+    return isConnected && inRange(l.zaloConnectedAt ? historyDayVN(l.zaloConnectedAt) : l.date);
   }).length;
 
-  const hotLeadsCount = memberLeads.filter((l) => 
+  // Snapshot "as of now" — shown as such in the report.
+  const hotLeadsCount = memberLeads.filter((l) =>
     l.potentialLevel === 'Nóng' || l.callStatus === 'Khách quan tâm cao' || l.status === 'Hẹn xem BĐS'
   ).length;
 
-  const depositOrClosedCount = memberLeads.filter((l) => 
-    l.status === 'Đàm phán / Cọc' || l.status === 'Đã chốt'
+  // Deposits/closings that happened inside the period: closing time, a status change logged then, or created then already closed.
+  const reachedClosingInRange = (l: Lead) =>
+    inRange(historyDayVN((l as Lead & { closedAt?: string }).closedAt)) ||
+    (l.history || []).some((h) => inRange(historyDayVN(h.date)) && /sang:? "(Đàm phán \/ Cọc|Đã chốt)"/.test(h.content || '')) ||
+    (!(l.history || []).length && inRange(l.date));
+  const depositOrClosedCount = memberLeads.filter((l) =>
+    (l.status === 'Đàm phán / Cọc' || l.status === 'Đã chốt') && reachedClosingInRange(l)
   ).length;
 
   const estimatedPipelineValue = memberLeads.reduce((sum, l) => sum + (Number(l.dealValue) || 0), 0);
@@ -272,6 +289,7 @@ export function buildSalesWeeklyActivityData(
     totalLeadsAssigned: memberLeads.length,
     calls,
     totalCallsCount,
+    totalCallAttempts,
     successfulCallsCount,
     callbackCallsCount,
     unreachableCallsCount,

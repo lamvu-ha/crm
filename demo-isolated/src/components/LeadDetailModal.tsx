@@ -73,6 +73,7 @@ import { findDuplicatePhoneLeads, playDuplicateAlertSound, normalizePhoneNumber,
 import { DuplicatePhoneWarningModal } from './DuplicatePhoneWarningModal';
 import { SaleConversionPieChart } from './SaleConversionPieChart';
 import { crmBackendService } from '../services/crmBackendService';
+import { CallResultPrompt, withLoggedCall } from './CallResultPrompt';
 
 // Gợi ý bullet point nhanh thông dụng cho sale BĐS
 const QUICK_NOTE_PRESETS = [
@@ -180,6 +181,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     }
   }, [lead?.id]);
   const [newLogType, setNewLogType] = useState<InteractionLog['type']>('Cuộc gọi');
+  const [showCallPrompt, setShowCallPrompt] = useState(false);
   const [newLogContent, setNewLogContent] = useState('');
   const [isAiCorrecting, setIsAiCorrecting] = useState(false);
   const [aiAutoCorrectEnabled, setAiAutoCorrectEnabled] = useState(true);
@@ -812,6 +814,18 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto touch-scroll">
+      {showCallPrompt && (
+        <CallResultPrompt
+          lead={formData}
+          onClose={() => setShowCallPrompt(false)}
+          onSave={(label, callStatus, note) => {
+            const updatedLead = withLoggedCall(formData, label, callStatus, note, currentUser?.name || formData.assignee);
+            setFormData(updatedLead);
+            onUpdateLead(updatedLead);
+            setShowCallPrompt(false);
+          }}
+        />
+      )}
       <div className="bg-white rounded-2xl max-w-5xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 my-auto max-h-[92dvh] sm:max-h-[95vh] flex flex-col transition-all">
         
         {/* ================================================================ */}
@@ -1048,6 +1062,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             {/* 1. Gọi ngay */}
             <a
               href={`tel:${formData.phone}`}
+              onClick={() => setShowCallPrompt(true)}
               className="inline-flex items-center justify-center px-3 py-2.5 text-xs sm:text-sm font-extrabold rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-sm transition-all whitespace-nowrap min-h-[42px] cursor-pointer"
               title="Bấm gọi trực tiếp cho khách hàng"
             >
@@ -2513,7 +2528,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             const newHistoryItem: InteractionLog = {
               id: `log-${Date.now()}`,
               date: new Date().toISOString().replace('T', ' ').slice(0, 16),
-              type: 'Cuộc gọi',
+              type: 'Ghi chú nội bộ', // Scheduling a callback is not a call made (weekly report counts "Cuộc gọi")
               content: logText,
               author: currentUser?.name || formData.assignee || 'Chuyên viên'
             };

@@ -80,12 +80,13 @@ export const WeeklyActivityPdfModal: React.FC<WeeklyActivityPdfModalProps> = ({
 
   // Trạng thái tùy biến ghi chú / kế hoạch
   const [isEditingNotes, setIsEditingNotes] = useState<boolean>(false);
-  const [selfAssessment, setSelfAssessment] = useState<'Xuất sắc' | 'Đạt chỉ tiêu' | 'Cần cố gắng'>('Đạt chỉ tiêu');
+  // '' = let the report grade itself from the week's numbers until the sale picks a value.
+  const [selfAssessment, setSelfAssessment] = useState<'' | 'Xuất sắc' | 'Đạt chỉ tiêu' | 'Cần cố gắng'>('');
   const [weeklyHighlights, setWeeklyHighlights] = useState<string>('');
   const [difficultiesFaced, setDifficultiesFaced] = useState<string>('');
   const [supervisorSupportNeeded, setSupervisorSupportNeeded] = useState<string>('');
-  const [nextWeekTargetCalls, setNextWeekTargetCalls] = useState<number>(35);
-  const [nextWeekTargetAppointments, setNextWeekTargetAppointments] = useState<number>(2);
+  const [nextWeekTargetCalls, setNextWeekTargetCalls] = useState<number | ''>('');
+  const [nextWeekTargetAppointments, setNextWeekTargetAppointments] = useState<number | ''>('');
   const [nextWeekPlanNotes, setNextWeekPlanNotes] = useState<string>('');
 
   // Trạng thái xuất file
@@ -154,12 +155,12 @@ export const WeeklyActivityPdfModal: React.FC<WeeklyActivityPdfModalProps> = ({
       activeDateRange.endDateStr,
       activeDateRange.weekLabel,
       {
-        selfAssessment,
+        selfAssessment: selfAssessment || undefined,
         weeklyHighlights: weeklyHighlights || undefined,
         difficultiesFaced: difficultiesFaced || undefined,
         supervisorSupportNeeded: supervisorSupportNeeded || undefined,
-        nextWeekTargetCalls,
-        nextWeekTargetAppointments,
+        nextWeekTargetCalls: nextWeekTargetCalls || undefined,
+        nextWeekTargetAppointments: nextWeekTargetAppointments || undefined,
         nextWeekPlanNotes: nextWeekPlanNotes || undefined
       }
     );
@@ -206,11 +207,11 @@ export const WeeklyActivityPdfModal: React.FC<WeeklyActivityPdfModalProps> = ({
   const handleCopySummary = () => {
     const summaryText = `[BÁO CÁO HOẠT ĐỘNG TUẦN - SALEPRO HCM_E05]
 Chuyên viên: ${reportData.member.name} (${reportData.member.role === 'tpkd' ? 'TPKD' : 'NVKD'} - ${reportData.member.team || 'MAY_MH5.19'})
-Kính gửi: TPKD ${reportData.tpkd?.name || 'Trưởng phòng'} & GĐKD Trưởng nhóm thử nghiệm
+Kính gửi: TPKD ${reportData.tpkd?.name || 'Trưởng phòng'} & GĐKD ${reportData.gdkd?.name || 'Ban giám đốc'}
 Thời gian: ${reportData.weekLabel}
 
 1. KẾT QUẢ CUỘC GỌI & TƯƠNG TÁC:
-- Số khách đã gọi: ${reportData.totalCallsCount} khách
+- Số khách đã gọi: ${reportData.totalCallsCount} khách (${reportData.totalCallAttempts} lượt gọi)
 - Kết nối thành công / Nghe máy: ${reportData.successfulCallsCount} (${reportData.callSuccessRate}%)
 - Hẹn gọi lại: ${reportData.callbackCallsCount}
 - Chưa liên hệ được: ${reportData.unreachableCallsCount}
@@ -223,8 +224,8 @@ Thời gian: ${reportData.weekLabel}
 
 3. KẾT NỐI ZALO & CHĂM SÓC TIỀM NĂNG:
 - Số khách kết nối Zalo mới: ${reportData.zaloConnectedCount}
-- Khách nét quan tâm cao: ${reportData.hotLeadsCount}
-- Cọc / Chốt: ${reportData.depositOrClosedCount}
+- Khách nét quan tâm cao (hiện tại): ${reportData.hotLeadsCount}
+- Cọc / Chốt trong kỳ: ${reportData.depositOrClosedCount}
 
 4. ĐÁNH GIÁ & ĐỀ XUẤT:
 - Tự đánh giá: ${reportData.selfAssessment}
@@ -456,6 +457,7 @@ Thời gian: ${reportData.weekLabel}
                   onChange={(e) => setSelfAssessment(e.target.value as any)}
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-800"
                 >
+                  <option value="">🤖 Tự động theo số liệu ({reportData.selfAssessment})</option>
                   <option value="Xuất sắc">⭐ Xuất sắc (Vượt chỉ tiêu)</option>
                   <option value="Đạt chỉ tiêu">✓ Đạt chỉ tiêu (Chuẩn KPI)</option>
                   <option value="Cần cố gắng">⚠️ Cần cố gắng (Chưa đạt)</option>
@@ -469,7 +471,8 @@ Thời gian: ${reportData.weekLabel}
                   min="10"
                   max="200"
                   value={nextWeekTargetCalls}
-                  onChange={(e) => setNextWeekTargetCalls(Number(e.target.value) || 35)}
+                  placeholder={`Tự động: ${reportData.nextWeekTargetCalls}`}
+                  onChange={(e) => setNextWeekTargetCalls(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-800"
                 />
               </div>
@@ -481,7 +484,8 @@ Thời gian: ${reportData.weekLabel}
                   min="1"
                   max="20"
                   value={nextWeekTargetAppointments}
-                  onChange={(e) => setNextWeekTargetAppointments(Number(e.target.value) || 2)}
+                  placeholder={`Tự động: ${reportData.nextWeekTargetAppointments}`}
+                  onChange={(e) => setNextWeekTargetAppointments(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-800"
                 />
               </div>
@@ -590,15 +594,17 @@ Thời gian: ${reportData.weekLabel}
                   <span className="font-bold text-slate-900">1. Trưởng phòng KD (TPKD):</span>{' '}
                   <span className="font-extrabold text-amber-900">{reportData.tpkd?.name || 'Quản trị thử nghiệm'}</span>
                   <span className="text-[10px] text-slate-500 font-mono block">
-                    Email: {reportData.tpkd?.email || 'admin@sandbox.invalid'}
+                    Email: {reportData.tpkd?.email || '—'}
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-800 pt-0.5">
                   <span className="font-bold text-slate-900">2. Giám đốc KD (GĐKD):</span>{' '}
-                  <span className="font-extrabold text-amber-900">Trưởng nhóm thử nghiệm</span>
-                  <span className="text-[10px] text-slate-500 font-mono block">
-                    Email: manager@sandbox.invalid • ĐT: 0000000011
-                  </span>
+                  <span className="font-extrabold text-amber-900">{reportData.gdkd?.name || 'Ban giám đốc'}</span>
+                  {reportData.gdkd && (
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      Email: {reportData.gdkd.email || '—'} • ĐT: {reportData.gdkd.phone || '—'}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -621,6 +627,7 @@ Thời gian: ${reportData.weekLabel}
                     {reportData.totalCallsCount} <span className="text-xs font-normal text-slate-500">khách</span>
                   </div>
                   <div className="mt-1 pt-1 border-t border-amber-200 text-[10px] text-slate-600 space-y-0.5">
+                    <div>• Tổng lượt gọi: <strong>{reportData.totalCallAttempts}</strong></div>
                     <div>• Nghe máy: <strong className="text-emerald-700">{reportData.successfulCallsCount}</strong> ({reportData.callSuccessRate}%)</div>
                     <div>• Hẹn gọi lại: <strong>{reportData.callbackCallsCount}</strong></div>
                     <div>• Chưa liên hệ: <strong>{reportData.unreachableCallsCount}</strong></div>
@@ -666,10 +673,10 @@ Thời gian: ${reportData.weekLabel}
                     <Award className="w-3.5 h-3.5 text-blue-600" />
                   </div>
                   <div className="text-2xl font-black text-blue-950 mt-1">
-                    {reportData.hotLeadsCount} <span className="text-xs font-normal text-slate-500">khách nét</span>
+                    {reportData.hotLeadsCount} <span className="text-xs font-normal text-slate-500">khách nét (hiện tại)</span>
                   </div>
                   <div className="mt-1 pt-1 border-t border-blue-200 text-[10px] text-slate-600 space-y-0.5">
-                    <div>• Cọc / Chốt: <strong className="text-rose-600">{reportData.depositOrClosedCount} hợp đồng</strong></div>
+                    <div>• Cọc / Chốt trong kỳ: <strong className="text-rose-600">{reportData.depositOrClosedCount} hợp đồng</strong></div>
                     <div>• Tổng Lead quản lý: <strong>{reportData.totalLeadsAssigned}</strong></div>
                     <div>• Đánh giá: <strong className="text-blue-900">{reportData.selfAssessment}</strong></div>
                   </div>
@@ -923,7 +930,7 @@ Thời gian: ${reportData.weekLabel}
                     (Phê duyệt)
                   </div>
                   <div className="h-16 flex items-end justify-center font-bold text-slate-800 text-sm">
-                    Trưởng nhóm thử nghiệm
+                    {reportData.gdkd?.name || ''}
                   </div>
                   <div className="text-[10px] text-slate-500">
                     Giám đốc kinh doanh
