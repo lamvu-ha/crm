@@ -16,6 +16,17 @@ From the repository root, run `npm.cmd run dev` on Windows (or `npm run dev` on 
 
 The demo uses synthetic records stored under `demo-isolated` and does not connect to Firestore. To run the original server separately, use `npm.cmd run dev:main`.
 
+On a new machine (Node.js 20+ and Git installed):
+
+```
+git clone https://github.com/lamvu-ha/crm.git
+cd crm
+npm.cmd install
+npm.cmd run dev
+```
+
+User guide for the three roles: [docs/huongdan.md](docs/huongdan.md). Sample customer file to import: [docs/du_lieu_khach_thu_nghiem.csv](docs/du_lieu_khach_thu_nghiem.csv).
+
 **Prerequisites:**  Node.js
 
 

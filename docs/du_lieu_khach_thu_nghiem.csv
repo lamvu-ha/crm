@@ -1,0 +1,31 @@
+﻿STT,Ngày dữ liệu,Họ và tên,Số điện thoại,Email,Tệp dữ liệu,Loại sản phẩm,Dự án,Khoảng tài chính,Tình trạng,Người phụ trách,Ghi chú
+1,2026-09-28,Nguyễn Hoài An,0000002001,nguyen.hoai.an@sandbox.invalid,Facebook Ads,Căn hộ chung cư,Khu đô thị Sông Xanh,2 - 3 tỷ,Khách mới,Chuyên viên 01,"Cần căn 2 phòng ngủ, gần trường học cho con"
+2,2026-09-29,Trần Minh Khang,0000002002,tran.minh.khang@sandbox.invalid,Google Ads,Nhà phố trung tâm,Phố Thương Mại Hòa Bình,8 - 12 tỷ,Khách mới,Chuyên viên 02,Muốn nhà mặt tiền để kinh doanh tầng trệt
+3,2026-09-30,Lê Thị Bảo Ngọc,0000002003,le.thi.bao.ngoc@sandbox.invalid,Zalo OA,Căn hộ chung cư,Khu đô thị Sông Xanh,3 - 5 tỷ,Quan tâm,Chuyên viên 01,"Hỏi chính sách vay 70%, ân hạn gốc 24 tháng"
+4,2026-10-01,Phạm Quốc Huy,0000002004,pham.quoc.huy@sandbox.invalid,Hotline,Biệt thự / Villa,Biệt thự Đồi Thông,Trên 20 tỷ,Tiềm năng,Chuyên viên 02,"Đã đi xem dự án khác, đang so sánh pháp lý"
+5,2026-10-02,Võ Thanh Trúc,0000002005,vo.thanh.truc@sandbox.invalid,Website,Shophouse,Phố Thương Mại Hòa Bình,10 - 15 tỷ,Khách mới,Chuyên viên 01,"Đầu tư cho thuê, quan tâm dòng tiền"
+6,2026-10-03,Đỗ Gia Bảo,0000002006,do.gia.bao@sandbox.invalid,Giới thiệu,Đất nền,Khu dân cư Long Phước,1 - 2 tỷ,Gọi lại sau,Chuyên viên 02,"Hẹn gọi lại sau 18h, đang bận công tác"
+7,2026-10-04,Huỳnh Mỹ Duyên,0000002007,huynh.my.duyen@sandbox.invalid,Facebook Ads,Căn hộ chung cư,Căn hộ Bến Cảng,3 - 5 tỷ,Khách mới,Chuyên viên 01,"Thích căn góc, view sông"
+8,2026-09-28,Bùi Đức Thắng,0000002008,bui.duc.thang@sandbox.invalid,Google Ads,Nhà phố trung tâm,Phố Thương Mại Hòa Bình,12 - 15 tỷ,Không nghe máy,Chuyên viên 02,Gọi 2 lần chưa bắt máy
+9,2026-09-29,Ngô Phương Linh,0000002009,ngo.phuong.linh@sandbox.invalid,Zalo OA,BĐS Nghỉ dưỡng,Resort Biển Ngọc,5 - 8 tỷ,Quan tâm,Chuyên viên 01,Hỏi cam kết lợi nhuận cho thuê
+10,2026-09-30,Đặng Văn Lực,0000002010,dang.van.luc@sandbox.invalid,Sự kiện mở bán,Đất nền,Khu dân cư Long Phước,2 - 3 tỷ,Khách mới,Chuyên viên 02,"Gặp tại sự kiện, xin bảng giá"
+11,2026-10-01,Mai Anh Thư,0000002011,mai.anh.thu@sandbox.invalid,Website,Căn hộ chung cư,Căn hộ Bến Cảng,2 - 3 tỷ,Tiềm năng,Chuyên viên 01,Vợ chồng trẻ mua nhà đầu tiên
+12,2026-10-02,Trương Công Danh,0000002012,truong.cong.danh@sandbox.invalid,Hotline,Mặt bằng kinh doanh,Phố Thương Mại Hòa Bình,5 - 8 tỷ,Khách mới,Chuyên viên 02,Tìm mặt bằng mở chuỗi cà phê
+13,2026-10-03,Lý Hồng Nhung,0000002013,ly.hong.nhung@sandbox.invalid,Facebook Ads,Căn hộ chung cư,Khu đô thị Sông Xanh,3 - 5 tỷ,Đàm phán / Cọc,Chuyên viên 01,Đang thương lượng chiết khấu thanh toán nhanh
+14,2026-10-04,Phan Tuấn Kiệt,0000002014,phan.tuan.kiet@sandbox.invalid,Google Ads,Biệt thự / Villa,Biệt thự Đồi Thông,15 - 20 tỷ,Quan tâm,Chuyên viên 02,"Cần sân vườn rộng, có hồ bơi"
+15,2026-09-28,Hồ Ngọc Hân,0000002015,ho.ngoc.han@sandbox.invalid,Giới thiệu,Shophouse,Phố Thương Mại Hòa Bình,10 - 15 tỷ,Khách mới,Chuyên viên 01,"Khách cũ giới thiệu, ưu tiên liên hệ sớm"
+16,2026-09-29,Châu Minh Trí,0000002016,chau.minh.tri@sandbox.invalid,Zalo OA,Đất nền,Khu dân cư Long Phước,1 - 2 tỷ,Gọi lại sau,Chuyên viên 02,Muốn xem sổ đỏ từng nền
+17,2026-09-30,Tạ Thu Hà,0000002017,ta.thu.ha@sandbox.invalid,Website,Căn hộ chung cư,Căn hộ Bến Cảng,3 - 5 tỷ,Khách mới,Chuyên viên 01,Hỏi tiến độ bàn giao
+18,2026-10-01,Kiều Văn Sang,0000002018,kieu.van.sang@sandbox.invalid,Hotline,Nhà phố trung tâm,Phố Thương Mại Hòa Bình,8 - 12 tỷ,Tiềm năng,Chuyên viên 02,"Đã có tài chính, chờ chọn vị trí"
+19,2026-10-02,Dương Khánh Vy,0000002019,duong.khanh.vy@sandbox.invalid,Facebook Ads,BĐS Nghỉ dưỡng,Resort Biển Ngọc,5 - 8 tỷ,Khách mới,Chuyên viên 01,Mua nghỉ dưỡng cuối tuần cho gia đình
+20,2026-10-03,Lâm Hoàng Phúc,0000002020,lam.hoang.phuc@sandbox.invalid,Sự kiện mở bán,Căn hộ chung cư,Khu đô thị Sông Xanh,2 - 3 tỷ,Quan tâm,Chuyên viên 02,Quan tâm căn studio để cho thuê
+21,2026-10-04,Quách Ngọc Diệp,0000002021,quach.ngoc.diep@sandbox.invalid,Google Ads,Shophouse,Phố Thương Mại Hòa Bình,10 - 15 tỷ,Khách mới,Chuyên viên 01,Cần xem mặt bằng thực tế cuối tuần
+22,2026-09-28,Tôn Thất Nhân,0000002022,ton.that.nhan@sandbox.invalid,Giới thiệu,Biệt thự / Villa,Biệt thự Đồi Thông,Trên 20 tỷ,Tiềm năng,Chuyên viên 02,"Khách VIP, yêu cầu tư vấn riêng"
+23,2026-09-29,Vương Bích Trâm,0000002023,vuong.bich.tram@sandbox.invalid,Zalo OA,Căn hộ chung cư,Căn hộ Bến Cảng,3 - 5 tỷ,Không nhu cầu,Chuyên viên 01,Đã mua dự án khác
+24,2026-09-30,Thái Minh Quân,0000002024,thai.minh.quan@sandbox.invalid,Website,Đất nền,Khu dân cư Long Phước,2 - 3 tỷ,Khách mới,Chuyên viên 02,Hỏi quy hoạch đường lớn
+25,2026-10-01,Cao Thị Kim Oanh,0000002025,cao.thi.kim.oanh@sandbox.invalid,Hotline,Nhà phố trung tâm,Phố Thương Mại Hòa Bình,8 - 12 tỷ,Quan tâm,Chuyên viên 01,Muốn nhà 1 trệt 3 lầu
+26,2026-10-02,Mạc Đăng Khoa,0000002026,mac.dang.khoa@sandbox.invalid,Facebook Ads,Mặt bằng kinh doanh,Phố Thương Mại Hòa Bình,5 - 8 tỷ,Khách mới,Chuyên viên 02,Thuê hoặc mua đều được
+27,2026-10-03,Lục Thanh Tâm,0000002027,luc.thanh.tam@sandbox.invalid,Google Ads,Căn hộ chung cư,Khu đô thị Sông Xanh,2 - 3 tỷ,Khách mới,Chuyên viên 01,Cần căn tầng thấp cho người lớn tuổi
+28,2026-10-04,Ninh Quang Vinh,0000002028,ninh.quang.vinh@sandbox.invalid,Sự kiện mở bán,BĐS Nghỉ dưỡng,Resort Biển Ngọc,8 - 12 tỷ,Tiềm năng,Chuyên viên 02,"Đầu tư dài hạn, hỏi pháp lý sở hữu"
+29,2026-10-04,Khách gọi lại lần 2,0000001011,,Hotline,Nhà phố trung tâm,Phố Thương Mại Hòa Bình,3 - 5 tỷ,Khách mới,Chuyên viên 02,TRÙNG SĐT với khách đã có trong hệ thống (Khách thử nghiệm 11)
+30,2026-10-04,Nguyễn Hoài An,0000002001,,Zalo OA,Căn hộ chung cư,Khu đô thị Sông Xanh,2 - 3 tỷ,Khách mới,Chuyên viên 02,TRÙNG SĐT với dòng 1 trong cùng file
