@@ -30,11 +30,11 @@ import {
   AlertTriangle,
   X
 } from 'lucide-react';
-import { Lead, LeadStatus, ViewMode, Appointment, SalesMember, TransferLeadPayload, isDemoLead, InteractionLog, SystemLog } from './types';
+import { Lead, LeadStatus, ViewMode, Appointment, SalesMember, TransferLeadPayload, TransferRequest, isDemoLead, InteractionLog, SystemLog } from './types';
 import { INITIAL_LEADS, INITIAL_APPOINTMENTS, isProductTypeMatch } from './data/initialData';
 import { INITIAL_SALES_MEMBERS, getNextAssignee, distributeLeadsToSales, getTpkdForMember, isLeadUnassigned } from './data/salesTeamData';
 import { calculateCRMIndicators, getQuickLeadStatus, getAssigneeRoleInfo, isLeadMatchingSource } from './utils/crmCalculations';
-import { appointmentConflicts, describeLeadChanges } from './utils/customerWorkflow';
+import { describeLeadChanges } from './utils/customerWorkflow';
 import { exportLeadsToCSV } from './utils/csvHelper';
 import { SaveStatus } from './components/SaveStatus';
 import { Header } from './components/Header';
@@ -52,6 +52,7 @@ import { LeadDetailModal } from './components/LeadDetailModal';
 import { QuickMessageModal } from './components/QuickMessageModal';
 import { ImportCsvModal } from './components/ImportCsvModal';
 import { TransferLeadModal } from './components/TransferLeadModal';
+import { TransferRequestsModal } from './components/TransferRequestsModal';
 import { LoginModal } from './components/LoginModal';
 import { LoginPage } from './components/LoginPage';
 import { GoogleSheetSyncModal } from './components/GoogleSheetSyncModal';
@@ -216,25 +217,10 @@ export default function App() {
     return [];
   });
 
-  const [appointments, setAppointments] = useState<Appointment[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_APPS);
-      if (saved) {
-        const parsed: Appointment[] = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed
-            .filter((a) => !['app-1', 'app-2', 'app-3'].includes(a.id) && !/^lead-0[1-9]$|^lead-10$/.test(a.leadId || ''))
-            .map((a) => ({
-              ...a,
-              assignee: sanitizeAssignee(a.assignee)
-            }));
-        }
-      }
-    } catch (e) {
-      console.error('Failed to parse saved appointments', e);
-    }
-    return [];
-  });
+  // Appointments are loaded from the server after login (see the sync effects below).
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  // Customer to preselect when the appointment form opens from a lead.
+  const [appointmentPrefillLeadId, setAppointmentPrefillLeadId] = useState<string | null>(null);
 
   // Sales team state - strictly authorized sheet members only
   const [salesMembers, setSalesMembers] = useState<SalesMember[]>(() => {
@@ -450,6 +436,26 @@ export default function App() {
     isOpen: false,
     targetLeads: []
   });
+
+  // NVKD propose transfers; TPKD/Admin approve them (server-side, see /api/transfer-requests).
+  const [transferRequests, setTransferRequests] = useState<TransferRequest[]>([]);
+  const [isTransferRequestsOpen, setIsTransferRequestsOpen] = useState(false);
+  const seenRequestStatusRef = React.useRef<Map<string, TransferRequest['status']> | null>(null);
+  // Also tells the NVKD when a TPKD decided on one of their proposals.
+  const loadTransferRequests = useCallback(() => {
+    crmBackend.getTransferRequests().then((list) => {
+      const seen = seenRequestStatusRef.current;
+      if (seen && currentUser.role === 'sale') {
+        // Arrives unannounced on a background refresh, so keep it on screen longer than a normal toast.
+        list.filter((r) => seen.get(r.id) === 'pending' && (r.status === 'approved' || r.status === 'rejected')).forEach((r) => {
+          if (r.status === 'approved') showToast(`✅ TPKD đã duyệt chuyển khách "${r.leadName}" sang ${r.toName}.`, 'success', { duration: 10000 });
+          else showToast(`❌ TPKD từ chối đề xuất chuyển khách "${r.leadName}"${r.decisionNote ? `: ${r.decisionNote}` : ''}.`, 'warning', { duration: 10000 });
+        });
+      }
+      seenRequestStatusRef.current = new Map(list.map((r) => [r.id, r.status]));
+      setTransferRequests(list);
+    }).catch(() => {});
+  }, [currentUser.role]);
 
   // Auto distribution policy state
   const [distributionPolicy, setDistributionPolicy] = useState<AutoDistributionPolicy>(() => {
@@ -701,6 +707,10 @@ export default function App() {
       } catch (e) {}
     }).catch(() => { setLeads([]); setIsLoggedIn(false); });
 
+    crmBackend.getAppointments().then(setAppointments).catch(() => {});
+    seenRequestStatusRef.current = null;
+    loadTransferRequests();
+
     // 2. Fetch sales members from centralized database
     crmBackend.getSalesMembers().then((serverMembers) => {
       if (serverMembers && serverMembers.length > 0) {
@@ -772,14 +782,6 @@ export default function App() {
       crmBackend.saveLeads(leads);
     }
   }, [leads, isLoggedIn]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_APPS, JSON.stringify(appointments));
-    } catch (e) {
-      console.error('Failed to persist appointments', e);
-    }
-  }, [appointments]);
 
   useEffect(() => {
     try {
@@ -889,9 +891,11 @@ export default function App() {
       crmBackend.getLeads().then(serverLeads => {
         if (!getSaveState().pending && !getSaveState().failed) setLeads(serverLeads);
       }).catch(() => {});
+      crmBackend.getAppointments().then(setAppointments).catch(() => {});
+      loadTransferRequests();
     }, 8000);
     return () => clearInterval(interval);
-  }, [isLoggedIn, currentUser.id]);
+  }, [isLoggedIn, currentUser.id, loadTransferRequests]);
 
   const handleManualRefresh = async () => {
     try {
@@ -1397,6 +1401,15 @@ export default function App() {
       console.warn(`[handleUpdateStatus] WARNING: Lead with ID "${leadId}" was not found in the current in-memory leads list! Attempting update anyway...`);
     }
 
+    // A viewing needs a date and time: open the booking form; saving it moves the customer to "Hẹn xem BĐS".
+    const hasPendingViewing = appointments.some((a) => a.leadId === leadId && a.status === 'Chờ đi xem');
+    if (newStatus === 'Hẹn xem BĐS' && currentLead && currentLead.status !== newStatus && !hasPendingViewing) {
+      setDetailLead(null);
+      handleScheduleFromLead(currentLead);
+      showToast(`Chọn ngày giờ hẹn để chuyển "${currentLead.fullName}" sang "Hẹn xem BĐS".`);
+      return;
+    }
+
     const nowIso = timestamp;
     const oldStatus = currentLead?.status || 'Chưa xác định';
     const newHistoryEntry: InteractionLog = {
@@ -1809,6 +1822,37 @@ export default function App() {
     }).then(() => loadSystemLogs());
   };
 
+  // NVKD: send one proposal per customer; the server keeps them until a TPKD/Admin decides.
+  const handleRequestTransfer = async (leadIds: string[], suggestedName: string, reason: string, handover: TransferRequest['handover']): Promise<boolean> => {
+    const suggestedToId = suggestedName ? salesMembers.find((m) => m.name === suggestedName)?.id : undefined;
+    const results = await Promise.all(leadIds.map((leadId) => crmBackend.createTransferRequest({ leadId, suggestedToId, reason, handover })));
+    results.forEach((r) => applyServerLead(r.lead));
+    const failed = results.filter((r) => !r.success);
+    const sent = results.length - failed.length;
+    if (sent) showToast(`📨 Đã gửi ${sent} đề xuất chuyển khách. Chờ TPKD duyệt.`);
+    if (failed.length) showToast(`⚠️ ${failed.length} đề xuất không gửi được: ${failed[0].error}`);
+    if (sent) {
+      setSelectedLeadIds([]);
+      loadTransferRequests();
+    }
+    return failed.length === 0;
+  };
+
+  const handleDecideTransfer = async (id: string, action: 'approve' | 'reject' | 'cancel', toUserId?: string, note?: string): Promise<boolean> => {
+    const result = await crmBackend.decideTransferRequest(id, action, toUserId, note);
+    if (!result.success) {
+      showToast(`⚠️ ${result.error}`);
+      return false;
+    }
+    applyServerLead(result.lead);
+    const request = result.request!;
+    showToast(action === 'approve'
+      ? `✅ Đã chuyển khách "${request.leadName}" sang ${request.toName}.`
+      : action === 'reject' ? `Đã từ chối đề xuất chuyển khách "${request.leadName}".` : `Đã huỷ đề xuất chuyển khách "${request.leadName}".`);
+    loadTransferRequests();
+    return true;
+  };
+
   // Accept lead handler (when sale accepts lead)
   const handleAcceptLead = (leadId: string) => {
     const now = new Date().toISOString();
@@ -1945,38 +1989,41 @@ export default function App() {
   };
 
   // Appointment operations
-  const handleAddAppointment = (newApp: Omit<Appointment, 'id'>) => {
-    const conflicts = appointmentConflicts(newApp, appointments);
-    if (conflicts.length) { showToast('Trùng lịch nhân viên trong khoảng 60 phút. Vui lòng chọn giờ khác.'); return; }
-    const appointment: Appointment = {
-      ...newApp,
-      id: `app-${Date.now()}`
-    };
-    setAppointments([appointment, ...appointments]);
-
-    // Also update lead's status to 'Hẹn xem BĐS' if currently lower
-    setLeads(
-      leads.map((l) => {
-        if (l.id === newApp.leadId && (l.status === 'Khách mới' || l.status === 'Đang chăm sóc')) {
-          return { ...l, status: 'Hẹn xem BĐS' };
-        }
-        return l;
-      })
-    );
-
-    showToast(`Đã lên lịch hẹn xem BĐS cho khách "${newApp.leadName}"`);
+  // The server books the slot, moves the customer to "Hẹn xem BĐS" and logs it in their history.
+  const applyServerLead = (lead?: Lead | null) => {
+    if (!lead) return;
+    setLeads((prev) => prev.map((l) => (l.id === lead.id ? lead : l)));
+    setDetailLead((current) => (current?.id === lead.id ? lead : current));
   };
 
-  const handleUpdateAppointmentStatus = (id: string, status: Appointment['status']) => {
-    setAppointments(
-      appointments.map((a) => (a.id === id ? { ...a, status } : a))
-    );
+  const handleAddAppointment = async (newApp: Omit<Appointment, 'id'>): Promise<boolean> => {
+    const result = await crmBackend.createAppointment(newApp);
+    if (!result.success || !result.appointment) {
+      showToast(`⚠️ ${result.error || 'Không lưu được lịch hẹn.'}`);
+      return false;
+    }
+    const created = result.appointment;
+    setAppointments((prev) => [created, ...prev.filter((a) => a.id !== created.id)]);
+    applyServerLead(result.lead);
+    showToast(`Đã lên lịch hẹn xem BĐS cho khách "${newApp.leadName}"`);
+    return true;
+  };
+
+  const handleUpdateAppointmentStatus = async (id: string, status: Appointment['status']) => {
+    const result = await crmBackend.updateAppointmentStatus(id, status);
+    if (!result.success || !result.appointment) {
+      showToast(`⚠️ ${result.error || 'Không cập nhật được lịch hẹn.'}`);
+      return;
+    }
+    const updated = result.appointment;
+    setAppointments((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    applyServerLead(result.lead);
     showToast(`Đã cập nhật trạng thái lịch hẹn`);
   };
 
   const handleScheduleFromLead = (lead: Lead) => {
+    setAppointmentPrefillLeadId(lead.id);
     setCurrentView('appointments');
-    showToast(`Đã chuyển sang trang lịch hẹn cho ${lead.fullName}`);
   };
 
   // CSV Import/Export
@@ -2731,6 +2778,23 @@ export default function App() {
 
       {/* Main Body with generous bottom padding for mobile sticky navigation & safe areas */}
       <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 flex-1 pb-28 sm:pb-32 md:pb-8">
+        {/* Pending transfer proposals: TPKD/Admin must decide; NVKD sees what is still waiting */}
+        {(() => {
+          const pendingCount = transferRequests.filter((r) => r.status === 'pending').length;
+          if (!pendingCount) return null;
+          const isSale = currentUser.role === 'sale';
+          return (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <span className="flex items-center gap-2 font-semibold"><ArrowRightLeft className="w-4 h-4" />
+                {isSale ? `Bạn có ${pendingCount} đề xuất chuyển khách đang chờ TPKD duyệt.` : `Có ${pendingCount} đề xuất chuyển khách đang chờ bạn duyệt.`}
+              </span>
+              <button type="button" onClick={() => setIsTransferRequestsOpen(true)} className="rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">
+                {isSale ? 'Xem đề xuất' : 'Xem & duyệt'}
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Executive Dashboard Overview Banner (KPIs, Status Donut Chart & Weekly Performance Bar Chart) */}
         <DashboardOverview
           indicators={indicators}
@@ -2766,10 +2830,10 @@ export default function App() {
                   setTransferModalData({ isOpen: true, targetLeads });
                 }}
                 className="inline-flex items-center justify-center min-h-[38px] px-3 py-1.5 bg-amber-700 hover:bg-amber-800 active:scale-95 text-white rounded-xl font-bold transition-all shadow-2xs"
-                title="Chuyển giao khách hàng cho chuyên viên Sale khác"
+                title={currentUser.role === 'sale' ? 'Gửi TPKD đề xuất chuyển các khách đã chọn' : 'Chuyển giao khách hàng cho chuyên viên Sale khác'}
               >
                 <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5" />
-                <span>Bàn giao ({selectedLeadIds.length})</span>
+                <span>{currentUser.role === 'sale' ? 'Đề xuất chuyển' : 'Bàn giao'} ({selectedLeadIds.length})</span>
               </button>
 
               {/* Auto distribute selected leads */}
@@ -2903,6 +2967,8 @@ export default function App() {
             }}
             currentUser={currentUser}
             onShowToast={showToast}
+            prefillLeadId={appointmentPrefillLeadId}
+            onPrefillHandled={() => setAppointmentPrefillLeadId(null)}
           />
         )}
 
@@ -3311,6 +3377,15 @@ export default function App() {
         />
       )}
 
+      <TransferRequestsModal
+        isOpen={isTransferRequestsOpen}
+        onClose={() => setIsTransferRequestsOpen(false)}
+        requests={transferRequests}
+        salesMembers={salesMembers}
+        currentUser={currentUser}
+        onDecide={handleDecideTransfer}
+      />
+
       {/* Transfer Lead Modal */}
       <TransferLeadModal
         isOpen={transferModalData.isOpen}
@@ -3321,6 +3396,8 @@ export default function App() {
         onConfirmTransfer={(leadIds, toAssignee, reason) =>
           handleTransferLeads({ leadIds, toAssignee, reason })
         }
+        mode={currentUser.role === 'sale' ? 'request' : 'transfer'}
+        onSubmitRequest={handleRequestTransfer}
         onMembersUpdated={(updated) => {
           setSalesMembers(updated);
           try {

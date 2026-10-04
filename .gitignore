@@ -8,7 +8,7 @@ coverage/
 !.env.example
 
 # Local runtime data and generated packages
-data/
+/data/
 audit-results/
 php_hosting_package/
 *.zip
@@ -23,3 +23,5 @@ firestore_quota.json
 ui_configs.json
 kpi_targets.json
 zalo_templates.json
+appointments.json
+transfer_requests.json

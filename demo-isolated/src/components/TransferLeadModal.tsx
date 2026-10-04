@@ -12,7 +12,12 @@ interface TransferLeadModalProps {
   currentUserName: string;
   onConfirmTransfer: (leadIds: string[], toAssignee: string, reason: string) => void;
   onMembersUpdated?: (members: SalesMember[]) => void;
+  // 'request': NVKD cannot reassign; they send a proposal that a TPKD/Admin approves.
+  mode?: 'transfer' | 'request';
+  onSubmitRequest?: (leadIds: string[], suggestedName: string, reason: string, handover: { needs: string; latest: string; next: string }) => Promise<boolean>;
 }
+
+const DEFAULT_TRANSFER_REASON = 'Bàn giao chăm sóc khách hàng theo kế hoạch';
 
 const BANNED_DEMO_NAMES = [
   'trần minh tâm (demo)',
@@ -31,8 +36,11 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
   salesMembers,
   currentUserName,
   onConfirmTransfer,
-  onMembersUpdated
+  onMembersUpdated,
+  mode = 'transfer',
+  onSubmitRequest
 }) => {
+  const isRequest = mode === 'request';
   // Ensure all authorized members from personnel roster are present
   const displaySalesList = useMemo(() => {
     const map = new Map<string, SalesMember>();
@@ -76,13 +84,17 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
 
   const [targetAssignee, setTargetAssignee] = useState<string>('');
   const [handover, setHandover] = useState({needs: '', latest: '', next: ''});
-  const [reason, setReason] = useState('Bàn giao chăm sóc khách hàng theo kế hoạch');
+  const [reason, setReason] = useState(DEFAULT_TRANSFER_REASON);
   const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(()=>{if(isOpen) setHandover({needs: leadsToTransfer.length === 1 ? leadsToTransfer[0].notes || '' : '', latest: '', next: ''});},[isOpen]);
-  // When modal opens, select the best candidate (preferably an active Sale, excluding current user)
+  useEffect(()=>{if(isOpen) {setHandover({needs: leadsToTransfer.length === 1 ? leadsToTransfer[0].notes || '' : '', latest: '', next: ''}); setReason(isRequest ? '' : DEFAULT_TRANSFER_REASON);}},[isOpen]);
+  // When modal opens, select the best candidate (preferably an active Sale, excluding current user).
+  // A proposal starts with no recipient: the TPKD decides unless the sale suggests someone.
   useEffect(() => {
-    if (isOpen && displaySalesList.length > 0) {
+    if (isOpen && isRequest) {
+      setTargetAssignee('');
+    } else if (isOpen && displaySalesList.length > 0) {
 
       const preferred = displaySalesList.find(
         (s) => s.status === 'active' && s.name !== currentUserName && (s.role === 'sale' || s.role === 'tpkd')
@@ -96,7 +108,7 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
         setTargetAssignee(preferred.name);
       }
     }
-  }, [isOpen, displaySalesList, currentUserName]);
+  }, [isOpen, displaySalesList, currentUserName, isRequest]);
 
   // Silently check and sync latest members from Google Drive file MAY_TRUONGBV_MH5.19_NVKD_V.1 if token exists
   useEffect(() => {
@@ -125,8 +137,16 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
 
   if (!isOpen || leadsToTransfer.length === 0) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRequest) {
+      const trimmed = {needs: handover.needs.trim(), latest: handover.latest.trim(), next: handover.next.trim()};
+      if (!reason.trim() || !trimmed.needs || !trimmed.latest || !trimmed.next || isSubmitting || !onSubmitRequest) return;
+      setIsSubmitting(true);
+      const sent = await onSubmitRequest(leadsToTransfer.map((l) => l.id), targetAssignee, reason.trim(), trimmed).finally(() => setIsSubmitting(false));
+      if (sent) onClose(); // Keep the form open on failure so nothing typed is lost.
+      return;
+    }
     if (!targetAssignee || !displaySalesList.some(member=>member.name===targetAssignee && member.status==='active')) {
       alert('Vui lòng chọn chuyên viên tiếp nhận!');
       return;
@@ -152,10 +172,12 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-800">
-                Chuyển giao khách hàng
+                {isRequest ? 'Đề xuất chuyển khách' : 'Chuyển giao khách hàng'}
               </h3>
               <p className="text-[11px] text-slate-500">
-                Bàn giao {leadsToTransfer.length} khách hàng cho chuyên viên sale tiếp nhận
+                {isRequest
+                  ? `Gửi TPKD duyệt chuyển ${leadsToTransfer.length} khách. Khách vẫn do bạn phụ trách cho tới khi được duyệt.`
+                  : `Bàn giao ${leadsToTransfer.length} khách hàng cho chuyên viên sale tiếp nhận`}
               </p>
             </div>
           </div>
@@ -200,7 +222,7 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block font-bold text-slate-700">
-                Chuyên viên Sale tiếp nhận <span className="text-rose-500">*</span>
+                {isRequest ? 'Gợi ý người nhận (không bắt buộc)' : <>Chuyên viên Sale tiếp nhận <span className="text-rose-500">*</span></>}
               </label>
               <div className="flex items-center gap-1.5">
                 {isSyncingDrive && (
@@ -217,19 +239,20 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
             <select
               value={targetAssignee}
               onChange={(e) => setTargetAssignee(e.target.value)}
-              required
+              required={!isRequest}
               className="w-full bg-white border border-slate-300 text-slate-800 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none font-medium"
             >
+              {isRequest && <option value="">— Để TPKD chọn người nhận —</option>}
               {salesGroup.length > 0 && (
                 <optgroup label={`Chuyên viên kinh doanh (NVKD / TPKD) — ${TARGET_NVKD_SHEET_NAME}`}>
                   {salesGroup.map((s) => (
-                    <option key={s.id} value={s.name} disabled={s.status === 'paused'}>
+                    <option key={s.id} value={s.name} disabled={s.status === 'paused' || (isRequest && s.name === currentUserName)}>
                       {s.name} — {s.title} {s.name === currentUserName ? '(Hiện tại)' : ''} {s.status === 'paused' ? '(Đang tạm ngưng)' : ''}
                     </option>
                   ))}
                 </optgroup>
               )}
-              {adminGroup.length > 0 && (
+              {adminGroup.length > 0 && !isRequest && (
                 <optgroup label="Ban quản trị & giám đốc">
                   {adminGroup.map((s) => (
                     <option key={s.id} value={s.name} disabled={s.status === 'paused'}>
@@ -266,7 +289,7 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
                 <div className="text-[10px] text-slate-400">{targetMember.phone} • {targetMember.email}</div>
               </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
-                Sẵn sàng nhận
+                {isRequest ? 'Được gợi ý' : 'Sẵn sàng nhận'}
               </span>
             </div>
           )}
@@ -275,13 +298,14 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
           {/* Reason / Handover Note */}
           <div>
             <label className="block font-bold text-slate-700 mb-1.5">
-              Lý do bàn giao &amp; Ghi chú tiếp nhận
+              {isRequest ? <>Lý do đề xuất chuyển <span className="text-rose-500">*</span></> : <>Lý do bàn giao &amp; Ghi chú tiếp nhận</>}
             </label>
             <textarea
               rows={3}
               value={reason}
+              required={isRequest}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="VD: Chuyên viên cũ nghỉ phép, bàn giao chăm sóc khách VIP..."
+              placeholder={isRequest ? 'VD: Nghỉ phép 1 tuần, khách ở xa khu vực, khách muốn đổi chuyên viên...' : 'VD: Chuyên viên cũ nghỉ phép, bàn giao chăm sóc khách VIP...'}
               className="w-full bg-white border border-slate-300 text-slate-800 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
             />
             <p className="text-[10px] text-slate-400 mt-1">
@@ -300,10 +324,13 @@ export const TransferLeadModal: React.FC<TransferLeadModalProps> = ({
             </button>
             <button
               type="submit"
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl font-bold shadow-xs transition-colors"
+              disabled={isSubmitting}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 disabled:opacity-60 disabled:cursor-wait text-white rounded-xl font-bold shadow-xs transition-colors"
             >
               <UserCheck className="w-4 h-4 mr-1.5" />
-              Xác nhận chuyển {leadsToTransfer.length} khách
+              {isRequest
+                ? (isSubmitting ? 'Đang gửi...' : `Gửi đề xuất cho TPKD (${leadsToTransfer.length} khách)`)
+                : `Xác nhận chuyển ${leadsToTransfer.length} khách`}
             </button>
           </div>
         </form>

@@ -10,6 +10,12 @@ View your app in AI Studio: https://ai.studio/apps/51250301-79ea-4135-a468-984e9
 
 ## Run Locally
 
+### Isolated demo
+
+From the repository root, run `npm.cmd run dev` on Windows (or `npm run dev` on macOS/Linux), then open http://127.0.0.1:3001. Sign in with `admin` and password `Demo@2026!`.
+
+The demo uses synthetic records stored under `demo-isolated` and does not connect to Firestore. To run the original server separately, use `npm.cmd run dev:main`.
+
 **Prerequisites:**  Node.js
 
 

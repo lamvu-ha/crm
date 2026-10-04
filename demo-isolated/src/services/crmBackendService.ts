@@ -1,5 +1,5 @@
 import { getSaveState, trackSave } from './saveTracker';
-import { Lead, LeadStatus, SalesMember, isDemoLead } from '../types';
+import { Appointment, Lead, LeadStatus, SalesMember, TransferRequest, isDemoLead } from '../types';
 import { 
   fetchLeadsFromFirestore, 
   saveLeadsToFirestore,
@@ -102,6 +102,63 @@ export class CRMBackendService {
       }
       return success;
     });
+  }
+
+  // Appointments live on the server so managers and other devices see the same schedule.
+  async getAppointments(): Promise<Appointment[]> {
+    const res = await authenticatedFetch('/api/appointments');
+    if (!res.ok) throw new Error('Không tải được lịch hẹn: HTTP ' + res.status);
+    const raw = await res.json();
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  async createAppointment(input: Pick<Appointment, 'leadId' | 'date' | 'time' | 'location'> & { note?: string }): Promise<{ success: boolean; appointment?: Appointment; lead?: Lead; error?: string }> {
+    return this.sendAppointment('/api/appointments', 'POST', input);
+  }
+
+  async updateAppointmentStatus(id: string, status: Appointment['status']): Promise<{ success: boolean; appointment?: Appointment; lead?: Lead | null; error?: string }> {
+    return this.sendAppointment('/api/appointments/' + encodeURIComponent(id), 'PATCH', { status });
+  }
+
+  private async sendAppointment(url: string, method: string, body: unknown) {
+    try {
+      const res = await authenticatedFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, error: data?.error || 'Không lưu được lịch hẹn (HTTP ' + res.status + ').' };
+      // The server already saved this lead; remember it so the next list diff does not resend it.
+      if (data.lead) this.remember(data.lead);
+      return { success: true, appointment: data.appointment, lead: data.lead };
+    } catch {
+      return { success: false, error: 'Mất kết nối máy chủ. Lịch hẹn chưa được lưu.' };
+    }
+  }
+
+  // Transfer proposals: NVKD proposes, TPKD/Admin approves or rejects on the server.
+  async getTransferRequests(): Promise<TransferRequest[]> {
+    const res = await authenticatedFetch('/api/transfer-requests');
+    if (!res.ok) throw new Error('Không tải được đề xuất chuyển khách: HTTP ' + res.status);
+    const raw = await res.json();
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  async createTransferRequest(input: { leadId: string; suggestedToId?: string; reason: string; handover: TransferRequest['handover'] }) {
+    return this.sendTransferRequest('/api/transfer-requests', 'POST', input);
+  }
+
+  async decideTransferRequest(id: string, action: 'approve' | 'reject' | 'cancel', toUserId?: string, note?: string) {
+    return this.sendTransferRequest('/api/transfer-requests/' + encodeURIComponent(id), 'PATCH', { action, toUserId, note });
+  }
+
+  private async sendTransferRequest(url: string, method: string, body: unknown): Promise<{ success: boolean; request?: TransferRequest; lead?: Lead | null; error?: string }> {
+    try {
+      const res = await authenticatedFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { success: false, error: data?.error || 'Không xử lý được đề xuất (HTTP ' + res.status + ').' };
+      if (data.lead) this.remember(data.lead);
+      return { success: true, request: data.request, lead: data.lead };
+    } catch {
+      return { success: false, error: 'Mất kết nối máy chủ. Đề xuất chưa được gửi.' };
+    }
   }
 
   // Fetch a single lead by ID from backend server

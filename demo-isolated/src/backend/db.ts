@@ -11,6 +11,8 @@ const UI_CONFIGS_FILE = path.join(DATA_DIR, 'ui_configs.json');
 const CUSTOM_FIELDS_FILE = path.join(DATA_DIR, 'custom_fields.json');
 const KPI_TARGETS_FILE = path.join(DATA_DIR, 'kpi_targets.json');
 const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
+const APPOINTMENTS_FILE = path.join(DATA_DIR, 'appointments.json');
+const TRANSFER_REQUESTS_FILE = path.join(DATA_DIR, 'transfer_requests.json');
 
 // Interface definitions mirroring schema.prisma
 export interface DbUser {
@@ -685,6 +687,26 @@ export class Database {
     const deletedCount = leads.length - filtered.length;
     this.saveLeads(filtered);
     return deletedCount;
+  }
+
+  // -------------------------------------------------------------
+  // Appointments (lịch hẹn xem BĐS)
+  // -------------------------------------------------------------
+  static getAppointments(): any[] {
+    return readJsonFile<any[]>(APPOINTMENTS_FILE, []);
+  }
+
+  static saveAppointments(appointments: any[]): void {
+    writeJsonFile(APPOINTMENTS_FILE, appointments);
+  }
+
+  // Transfer requests (NVKD đề xuất chuyển khách, TPKD/Admin duyệt)
+  static getTransferRequests(): any[] {
+    return readJsonFile<any[]>(TRANSFER_REQUESTS_FILE, []);
+  }
+
+  static saveTransferRequests(requests: any[]): void {
+    writeJsonFile(TRANSFER_REQUESTS_FILE, requests);
   }
 
   // -------------------------------------------------------------

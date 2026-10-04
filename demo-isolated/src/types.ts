@@ -92,6 +92,28 @@ export interface Lead {
   callbackReminder?: CallbackReminder; // Lịch nhắc nhở gọi lại tự động gửi thông báo push
   periodicFollowUp?: PeriodicFollowUpReminder; // Lịch nhắc nhở follow-up định kỳ theo chu kỳ (mỗi N ngày)
   aiAnalysis?: CustomerAnalysisResult; // Phân tích nhu cầu khách hàng từ Gemini AI
+  pendingTransfer?: { requestId: string; requestedBy: string; requestedAt: string; suggestedToName?: string | null } | null; // Đề xuất chuyển khách đang chờ TPKD duyệt (do server quản lý)
+}
+
+export interface TransferRequest {
+  id: string;
+  leadId: string;
+  leadName: string;
+  leadPhone: string;
+  fromUserId: string;
+  fromName: string;
+  currentAssignee: string;
+  suggestedToId?: string | null;
+  suggestedToName?: string | null;
+  reason: string;
+  handover: { needs: string; latest: string; next: string };
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+  decisionNote?: string;
+  toUserId?: string;
+  toName?: string;
 }
 
 export type PriorityLevel = 'Nóng' | 'Ấm' | 'Lạnh';

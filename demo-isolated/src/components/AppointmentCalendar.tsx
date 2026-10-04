@@ -23,6 +23,7 @@ import {
 import { Appointment, Lead, SalesMember } from '../types';
 import { appointmentConflicts } from '../utils/customerWorkflow';
 import { formatDateVN } from '../utils/crmCalculations';
+import { DateInputVN } from './DateInputVN';
 import { 
   getAppointmentTimeInfo, 
   getNotificationPermission, 
@@ -34,12 +35,20 @@ import {
 interface AppointmentCalendarProps {
   appointments: Appointment[];
   leads: Lead[];
-  onAddAppointment: (appointment: Omit<Appointment, 'id'>) => void;
+  onAddAppointment: (appointment: Omit<Appointment, 'id'>) => Promise<boolean>;
   onUpdateAppointmentStatus: (id: string, status: Appointment['status']) => void;
   onSelectLeadById: (leadId: string) => void;
   currentUser?: SalesMember;
   onShowToast?: (message: string) => void;
+  prefillLeadId?: string | null; // Open the booking form for this customer
+  onPrefillHandled?: () => void;
 }
+
+// Local calendar date (YYYY-MM-DD); toISOString() would give yesterday before 07:00 in Vietnam.
+const todayLocal = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   appointments,
@@ -48,11 +57,14 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   onUpdateAppointmentStatus,
   onSelectLeadById,
   currentUser,
-  onShowToast
+  onShowToast,
+  prefillLeadId,
+  onPrefillHandled
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(leads[0]?.id || '');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayLocal);
+  const [isSaving, setIsSaving] = useState(false);
   const [time, setTime] = useState('09:30');
   const [location, setLocation] = useState('');
   const [note, setNote] = useState('');
@@ -96,20 +108,38 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
     }
   };
 
+  const openAddModal = (leadId?: string) => {
+    if (leadId && !leads.some((l) => l.id === leadId)) {
+      onShowToast?.('Không tìm thấy khách hàng để đặt lịch. Vui lòng tải lại danh sách.');
+      return;
+    }
+    setSelectedLeadId(leadId || (leads.some((l) => l.id === selectedLeadId) ? selectedLeadId : leads[0]?.id || ''));
+    setDate(todayLocal());
+    setShowAddModal(true);
+  };
+
+  // Opened from a customer card or status change: preselect that customer.
+  useEffect(() => {
+    if (!prefillLeadId) return;
+    openAddModal(prefillLeadId);
+    onPrefillHandled?.();
+  }, [prefillLeadId]);
+
   const selectedLead = leads.find((l) => l.id === selectedLeadId);
 
   const schedulingConflicts = selectedLead ? appointmentConflicts({date,time,assignee:selectedLead.assignee}, appointments) : [];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedLead) return;
+    if (!selectedLead || isSaving) return;
 
     const conflicts = appointmentConflicts({date, time, assignee: selectedLead.assignee}, appointments);
     if (conflicts.length) {
       onShowToast?.(`Trùng lịch của ${selectedLead.assignee}: ${conflicts.map(app=>`${app.leadName} lúc ${app.time}`).join(', ')}. Mỗi lịch dành 60 phút; vui lòng chọn giờ khác.`);
       return;
     }
-    onAddAppointment({
+    setIsSaving(true);
+    const saved = await onAddAppointment({
       leadId: selectedLead.id,
       leadName: selectedLead.fullName,
       leadPhone: selectedLead.phone,
@@ -120,7 +150,8 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
       assignee: selectedLead.assignee,
       status: 'Chờ đi xem',
       note
-    });
+    }).finally(() => setIsSaving(false));
+    if (!saved) return; // Keep the form open so the user can adjust and retry.
 
     setShowAddModal(false);
     setLocation('');
@@ -356,7 +387,7 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
           )}
 
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => openAddModal()}
             className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 rounded-xl shadow-xs transition-colors"
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -523,10 +554,10 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                   <label className="block text-slate-700 font-bold mb-1">
                     Ngày hẹn <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DateInputVN
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
+                    onChange={setDate}
+                    ariaLabel="Ngày hẹn"
                     className="w-full border border-slate-300 rounded-xl p-2.5 text-base sm:text-xs text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     required
                   />
@@ -582,9 +613,10 @@ export const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 rounded-xl shadow-xs transition-colors text-center"
+                  disabled={isSaving}
+                  className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-60 disabled:cursor-wait rounded-xl shadow-xs transition-colors text-center"
                 >
-                  Lưu Lịch Hẹn
+                  {isSaving ? 'Đang lưu...' : 'Lưu Lịch Hẹn'}
                 </button>
               </div>
             </form>

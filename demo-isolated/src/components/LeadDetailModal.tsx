@@ -1174,11 +1174,12 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => onTransferLead(formData)}
-                className="px-2.5 py-1.5 text-xs font-bold rounded-xl border bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shrink-0 flex items-center space-x-1.5 transition-all cursor-pointer min-h-[34px]"
-                title="Bàn giao khách cho chuyên viên khác"
+                disabled={Boolean(formData.pendingTransfer)}
+                className="px-2.5 py-1.5 text-xs font-bold rounded-xl border bg-white text-slate-700 border-slate-200 hover:bg-slate-100 disabled:bg-amber-50 disabled:text-amber-700 disabled:border-amber-200 disabled:cursor-not-allowed shrink-0 flex items-center space-x-1.5 transition-all cursor-pointer min-h-[34px]"
+                title={formData.pendingTransfer ? `Đề xuất bởi ${formData.pendingTransfer.requestedBy}, chờ TPKD duyệt` : 'Bàn giao khách cho chuyên viên khác'}
               >
                 <ArrowRightLeft className="w-3.5 h-3.5 text-slate-600" />
-                <span>Chuyển Sale</span>
+                <span>{formData.pendingTransfer ? 'Chờ duyệt chuyển' : currentUser?.role === 'sale' ? 'Đề xuất chuyển' : 'Chuyển Sale'}</span>
               </button>
             )}
           </div>
@@ -1199,7 +1200,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               {formData.status !== 'Hẹn xem BĐS' && (
                 <button
                   type="button"
-                  onClick={() => handleQuickStatus('Hẹn xem BĐS')}
+                  onClick={() => onScheduleAppointment(formData)} // Booking the viewing sets this status
+                  title="Đặt lịch hẹn để chuyển khách sang Hẹn xem BĐS"
                   className="px-2 py-0.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 active:scale-95 rounded-lg border border-purple-200 transition-all shrink-0 cursor-pointer"
                 >
                   Hẹn xem BĐS

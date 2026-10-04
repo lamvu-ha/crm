@@ -6,11 +6,14 @@ import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, writeBatch, setLogLevel } from "firebase/firestore";
 import { generateAuthenticCampaignLeads } from "./src/data/campaignLeads";
+import { INITIAL_LEADS } from "./src/data/initialData";
 import authRouter from "./src/backend/routes/authRoutes";
 import leadRouter from "./src/backend/routes/leadRoutes";
 import userRouter from "./src/backend/routes/userRoutes";
 import kpiRouter from "./src/backend/routes/kpiRoutes";
 import adminRouter from "./src/backend/routes/adminRoutes";
+import appointmentRouter from "./src/backend/routes/appointmentRoutes";
+import transferRequestRouter from "./src/backend/routes/transferRequestRoutes";
 import { Database } from "./src/backend/db";
 import { authenticateToken, optionalAuthenticateToken, requireRole, requireSuperAdmin, requireTeamLeaderOrAdmin } from "./src/backend/middleware";
 
@@ -243,6 +246,17 @@ function appendServerSystemLog(entry: any): void {
 
 // Official sales team members from Google Sheet MAY_TRUONGBV_MH5.19_NVKD_V.1
 const SEED_SALES_MEMBERS = [{"id":"sandbox-user-0","name":"Quản trị thử nghiệm","username":"admin","email":"admin@sandbox.invalid","phone":"0000000010","role":"admin","status":"active","password":"Demo@2026!","color":"#2563eb","team":"Nhóm thử nghiệm","teamName":"Nhóm thử nghiệm","mustChangePassword":false,"isOnlineForLead":true,"maxDailyLeads":50},{"id":"sandbox-user-1","name":"Trưởng nhóm thử nghiệm","username":"manager","email":"manager@sandbox.invalid","phone":"0000000011","role":"tpkd","status":"active","password":"Demo@2026!","color":"#2563eb","team":"Nhóm thử nghiệm","teamName":"Nhóm thử nghiệm","mustChangePassword":false,"isOnlineForLead":true,"maxDailyLeads":50},{"id":"sandbox-user-2","name":"Chuyên viên 01","username":"sale01","email":"sale01@sandbox.invalid","phone":"0000000012","role":"sale","status":"active","password":"Demo@2026!","color":"#2563eb","team":"Nhóm thử nghiệm","teamName":"Nhóm thử nghiệm","mustChangePassword":false,"isOnlineForLead":true,"maxDailyLeads":50},{"id":"sandbox-user-3","name":"Chuyên viên 02","username":"sale02","email":"sale02@sandbox.invalid","phone":"0000000013","role":"sale","status":"active","password":"Demo@2026!","color":"#2563eb","team":"Nhóm thử nghiệm","teamName":"Nhóm thử nghiệm","mustChangePassword":false,"isOnlineForLead":true,"maxDailyLeads":50}];
+
+// Seed only this isolated directory on first run. Existing demo edits are preserved.
+for (const [file, value] of [
+  [SALES_FILE, SEED_SALES_MEMBERS],
+  [LEADS_FILE, INITIAL_LEADS],
+  [SETTINGS_FILE, {}],
+  [CHAT_FILE, []],
+  [SYSTEM_LOGS_FILE, []],
+] as const) {
+  if (!fs.existsSync(file)) fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf-8');
+}
 
 const DEMO_EMAILS_BLACKLIST = new Set([
   'admin@nhaphotrungtam.com.vn',
@@ -773,6 +787,8 @@ async function startServer() {
   app.use("/api/users", userRouter);
   app.use("/api/kpi", kpiRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/appointments", appointmentRouter);
+  app.use("/api/transfer-requests", transferRequestRouter);
 
   // ==========================================
   // LEADS ENDPOINTS

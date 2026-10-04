@@ -31,6 +31,8 @@ export default defineConfig(() => {
           '**/kpi_targets.json',
           '**/feature_flags.json',
           '**/ui_configs.json',
+          '**/appointments.json',
+          '**/transfer_requests.json',
         ],
       },
     },

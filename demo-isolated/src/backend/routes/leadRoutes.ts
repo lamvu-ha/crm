@@ -371,6 +371,7 @@ router.put('/:id', optionalAuthenticateToken, (req: Request, res: Response) => {
     delete updates.expectedUpdatedAt;
     delete updates.closedAt;
     delete updates.closedById;
+    delete updates.pendingTransfer; // Only /api/transfer-requests sets or clears it
     if (updates.status) updates.stage = mapDisplayToStage(updates.status);
     const changedOwner = ['assignedToId', 'assignee', 'assigneeEmail'].some(key => key in updates && updates[key] !== existing[key]);
     if (changedOwner && req.user!.role !== 'SALES_AGENT') {
